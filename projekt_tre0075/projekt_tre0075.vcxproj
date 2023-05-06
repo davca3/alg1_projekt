@@ -186,6 +186,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\..\graph1.txt" />
+    <Text Include="graph1.txt" />
     <Text Include="test.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
