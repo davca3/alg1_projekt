@@ -8,7 +8,7 @@
 using namespace std;
 
 void loadComponentsFromFile(const string filename, vector<vector<int>>& adj_list, vector<int>& vertices) {
-    cout << "Loading from file started" << endl;
+    //cout << "Loading from file started" << endl;
     fstream file(filename);
 
     if (!file.is_open()) {
@@ -37,17 +37,17 @@ void loadComponentsFromFile(const string filename, vector<vector<int>>& adj_list
             adj_list[index2].push_back(index1);
         }
     }
-    cout << "File loaded" << endl;
+    //cout << "File loaded" << endl;
     file.close();
 }
 
 // Funkce pro prohledání grafu do šířky a označení navštívených vrcholů
-void bfs(int v, const vector<vector<int>>& adj_list, vector<bool>& visited, set<int>& component, vector<double>& max_distance) {
+set<int> bfs_component(int v, const vector<vector<int>>& adj_list, vector<bool>& visited) {
+    set<int> component;
     queue<int> q;
     q.push(v);
     visited[v] = true;
     component.insert(v);
-    max_distance[v] = 0;
     while (!q.empty()) {
         int u = q.front();
         q.pop();
@@ -55,38 +55,37 @@ void bfs(int v, const vector<vector<int>>& adj_list, vector<bool>& visited, set<
             if (!visited[w]) {
                 visited[w] = true;
                 component.insert(w);
-                max_distance[w] = max_distance[u] + 1;
                 q.push(w);
             }
         }
     }
+
+    return component;
 }
 
 vector<set<int>> getComponents(vector<int>& vertices, const vector<vector<int>>& adj_list) {
-    cout << "Components find started" << endl;
+    //cout << "Components find started" << endl;
     int n = adj_list.size();
     vector<double> dist(n, numeric_limits<double>::infinity());
     vector<bool> visited(vertices.size(), false);
     vector<set<int>> components;
     for (int v = 0; v < vertices.size(); v++) {
-        if (!visited[v]) {
-            set<int> component;
-            bfs(v, adj_list, visited, component, dist);
-            components.push_back(component);
+        if (!visited[v]) {  
+            components.push_back(bfs_component(v, adj_list, visited));
         }
     }
-    cout << "Components found" << endl;
+    //cout << "Components found" << endl;
     return components;
 }
 
 set<int> getLargestComponent(const vector<set<int>>& components) {
-    cout << "Largest component find started" << endl;
+    //cout << "Largest component find started" << endl;
     set<int> largest_component;
     for (const auto& component : components)
         if (component.size() > largest_component.size()) {
             largest_component = component;
         }
-    cout << "Largest component found" << endl;
+    //cout << "Largest component found" << endl;
     return largest_component;
 }
 
@@ -112,7 +111,6 @@ vector<int> bfs_dist(int start, const vector<vector<int>>& adj_list) {
 }
 
 void calculateGraphStats(const set<int>& component, const vector<vector<int>>& adj_list, double& radius, double& diameter) {
-    double sum = 0.0;
     int num_pairs = 0;
     radius = numeric_limits<double>::max();
     diameter = numeric_limits<double>::min();
@@ -123,19 +121,11 @@ void calculateGraphStats(const set<int>& component, const vector<vector<int>>& a
         for (int v : component) {
             if (u != v && dist[v] != numeric_limits<int>::max()) {
                 max_dist = max(max_dist, dist[v]);
-                sum += dist[v];
-                num_pairs++;
             }
         }
         radius = min(radius, (double)max_dist);
         diameter = max(diameter, (double)max_dist);
     }
-
-    double avg_distance = sum / num_pairs;
-    cout << "Graph stats for largest component" << endl;
-    cout << "Radius: " << radius << endl;
-    cout << "Diameter: " << diameter << endl;
-    cout << "Average distance: " << avg_distance << endl;
 }
 
 
@@ -178,16 +168,6 @@ int main() {
     }
 
     double avg_degree = (double)largest_num_edges / largest_num_vertices;
-
-    vector<vector<pair<int, double>>> adj_list_double(adj_list.size());
-    for (int i = 0; i < adj_list.size(); i++) {
-        for (int j = 0; j < adj_list[i].size(); j++) {
-            int v = adj_list[i][j];
-            double weight = 1.0; // Váha hrany
-            adj_list_double[i].push_back({ v, weight });
-        }
-    }
-
     double radius, diameter;
     calculateGraphStats(largest_component, adj_list, radius, diameter);
     cout << "Graph stats" << endl;
@@ -200,6 +180,8 @@ int main() {
     cout << "Min degree: " << largest_min_degree << endl;
     cout << "Max degree: " << largest_max_degree << endl;
     cout << "Avg degree: " << avg_degree << endl;
+    cout << "Radius: " << radius << endl;
+    cout << "Diameter: " << diameter << endl;
     cout << "Histogram rozdeleni stupnu vrcholu:" << endl;
     for (int i = 0; i < degree_histogram.size(); i++) {
         if (degree_histogram[i] > 0) {
