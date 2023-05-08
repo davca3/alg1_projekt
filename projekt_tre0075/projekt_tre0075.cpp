@@ -7,6 +7,7 @@
 #include <limits>
 using namespace std;
 
+//Nacteni vrcholu grafu a seznamu sousednosti ze souboru
 void loadComponentsFromFile(const string filename, vector<vector<int>>& adj_list, vector<int>& vertices) {
     //cout << "Loading from file started" << endl;
     fstream file(filename);
@@ -41,7 +42,7 @@ void loadComponentsFromFile(const string filename, vector<vector<int>>& adj_list
     file.close();
 }
 
-// Funkce pro prohledání grafu do šířky a označení navštívených vrcholů
+//Prohledani grafu do sirky a oznaceni navstivenych vrcholu
 set<int> bfs_component(int v, const vector<vector<int>>& adj_list, vector<bool>& visited) {
     set<int> component;
     queue<int> q;
@@ -63,6 +64,7 @@ set<int> bfs_component(int v, const vector<vector<int>>& adj_list, vector<bool>&
     return component;
 }
 
+//Ziskani komponent grafu
 vector<set<int>> getComponents(vector<int>& vertices, const vector<vector<int>>& adj_list) {
     //cout << "Components find started" << endl;
     int n = adj_list.size();
@@ -78,6 +80,7 @@ vector<set<int>> getComponents(vector<int>& vertices, const vector<vector<int>>&
     return components;
 }
 
+//Nalezeni nejvetsi komponenty
 set<int> getLargestComponent(const vector<set<int>>& components) {
     //cout << "Largest component find started" << endl;
     set<int> largest_component;
@@ -89,6 +92,7 @@ set<int> getLargestComponent(const vector<set<int>>& components) {
     return largest_component;
 }
 
+//Prochazeni pomoci breadth-first search algoritmu k zjisteni vzdalenosti ze startovniho bodu
 vector<int> bfs_dist(int start, const vector<vector<int>>& adj_list) {
     int n = adj_list.size();
     vector<int> dist(n, numeric_limits<int>::max());
@@ -110,6 +114,7 @@ vector<int> bfs_dist(int start, const vector<vector<int>>& adj_list) {
     return dist;
 }
 
+//Vypocet prumeru a polomeru komponenty
 void calculateGraphStats(const set<int>& component, const vector<vector<int>>& adj_list, double& radius, double& diameter) {
     int num_pairs = 0;
     radius = numeric_limits<double>::max();
@@ -128,17 +133,11 @@ void calculateGraphStats(const set<int>& component, const vector<vector<int>>& a
     }
 }
 
-
-
-int main() {
-    // Vektory vrcholu grafu
-    vector<int> vertices;
-    // Seznam sousednosti
-    vector<vector<int>> adj_list;
-
-    loadComponentsFromFile("test.txt", adj_list, vertices);
-    vector<set<int>> components = getComponents(vertices, adj_list);
+//Vypocet statistik grafu a vypis
+void computeGraphStats(vector<int>& vertices, const vector<vector<int>>& adj_list, const vector<set<int>>& components) {
     set<int> largest_component = getLargestComponent(components);
+
+    //Vypocet statistik nejvetsi komponenty
     int largest_num_vertices = largest_component.size();
     int largest_num_edges = 0;
     int largest_min_degree = largest_num_vertices;
@@ -152,7 +151,10 @@ int main() {
         largest_max_degree = max(largest_max_degree, degree);
     }
 
-    vector<int> degree_histogram(largest_num_vertices + 1, 0); // Histogram rozdělení stupňů vrcholů
+    // Histogram rozdělení stupňů vrcholů
+    vector<int> degree_histogram(largest_num_vertices + 1, 0); 
+
+    //Vypocet hran a histogram
     int num_edges_all = 0;
     set<int> all_vertices;
     for (const auto& component : components) {
@@ -168,12 +170,16 @@ int main() {
     }
 
     double avg_degree = (double)largest_num_edges / largest_num_vertices;
+
+    //Vypocet prumeru a polomeru komponenty
     double radius, diameter;
     calculateGraphStats(largest_component, adj_list, radius, diameter);
+
     cout << "Graph stats" << endl;
     cout << "Number of Vertices: " << all_vertices.size() << endl;
     cout << "Number of Edges: " << num_edges_all << endl;
-    cout << "Number of Components: " << components.size() << endl;
+    cout << "Number of Components: " << components.size() << endl << endl;
+
     cout << "Largest Component" << endl;
     cout << "Number of Vertices: " << largest_num_vertices << endl;
     cout << "Number of Edges: " << largest_num_edges / 2 << endl;
@@ -181,13 +187,25 @@ int main() {
     cout << "Max degree: " << largest_max_degree << endl;
     cout << "Avg degree: " << avg_degree << endl;
     cout << "Radius: " << radius << endl;
-    cout << "Diameter: " << diameter << endl;
-    cout << "Histogram rozdeleni stupnu vrcholu:" << endl;
+    cout << "Diameter: " << diameter << endl << endl;
+
+    cout << "Histogram of the peak degree distribution:" << endl;
     for (int i = 0; i < degree_histogram.size(); i++) {
         if (degree_histogram[i] > 0) {
             cout << i << ": " << degree_histogram[i] << endl;
         }
     }
+}
+
+int main() {
+    // Vektory vrcholu grafu
+    vector<int> vertices;
+    // Seznam sousednosti
+    vector<vector<int>> adj_list;
+
+    loadComponentsFromFile("graph1.txt", adj_list, vertices);
+    vector<set<int>> components = getComponents(vertices, adj_list);
+    computeGraphStats(vertices, adj_list, components);
 
     system("pause");
     return 0;
