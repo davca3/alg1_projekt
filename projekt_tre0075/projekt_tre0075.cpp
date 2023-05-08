@@ -7,9 +7,9 @@
 #include <limits>
 using namespace std;
 
-void loadComponentsFromFile(vector<vector<int>>& adj_list, vector<int>& vertices) {
-    fstream file("graph1.txt");
-    int rows = 0, cols = 2;
+void loadComponentsFromFile(const string filename, vector<vector<int>>& adj_list, vector<int>& vertices) {
+    cout << "Loading from file started" << endl;
+    fstream file(filename);
 
     if (!file.is_open()) {
         std::cerr << "Chyba pri otevirani souboru" << std::endl;
@@ -42,11 +42,12 @@ void loadComponentsFromFile(vector<vector<int>>& adj_list, vector<int>& vertices
 }
 
 // Funkce pro prohledání grafu do šířky a označení navštívených vrcholů
-void bfs(int v, const vector<vector<int>>& adj_list, vector<bool>& visited, set<int>& component) {
+void bfs(int v, const vector<vector<int>>& adj_list, vector<bool>& visited, set<int>& component, vector<double>& max_distance) {
     queue<int> q;
     q.push(v);
     visited[v] = true;
     component.insert(v);
+    max_distance[v] = 0;
     while (!q.empty()) {
         int u = q.front();
         q.pop();
@@ -54,52 +55,90 @@ void bfs(int v, const vector<vector<int>>& adj_list, vector<bool>& visited, set<
             if (!visited[w]) {
                 visited[w] = true;
                 component.insert(w);
+                max_distance[w] = max_distance[u] + 1;
                 q.push(w);
             }
         }
     }
 }
 
-pair<double, double> floyd_warshall(const vector<vector<int>>& adj_list, const set<int>& component) {
-    int n = component.size();
-    vector<vector<double>> shortest_paths(n, vector<double>(n, numeric_limits<double>::infinity()));
-    vector<int> component_index(component.begin(), component.end()); // indexy vrcholů v komponentě
-
-    // Inicializujeme nejkratší vzdálenosti mezi sousedními vrcholy v komponentě
-    for (int u : component) {
-        int i = distance(component.begin(), find(component.begin(), component.end(), u));
-        for (int v : adj_list[u]) {
-            if (component.find(v) != component.end()) {
-                int j = distance(component.begin(), find(component.begin(), component.end(), v));
-                shortest_paths[i][j] = 1;
-                shortest_paths[j][i] = 1;
-            }
+vector<set<int>> getComponents(vector<int>& vertices, const vector<vector<int>>& adj_list) {
+    cout << "Components find started" << endl;
+    int n = adj_list.size();
+    vector<double> dist(n, numeric_limits<double>::infinity());
+    vector<bool> visited(vertices.size(), false);
+    vector<set<int>> components;
+    for (int v = 0; v < vertices.size(); v++) {
+        if (!visited[v]) {
+            set<int> component;
+            bfs(v, adj_list, visited, component, dist);
+            components.push_back(component);
         }
     }
-
-    // Floydův-Warshallův algoritmus pro nalezení nejkratších cest mezi všemi dvojicemi vrcholů v komponentě
-    for (int k = 0; k < n; k++) {
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                shortest_paths[i][j] = min(shortest_paths[i][j], shortest_paths[i][k] + shortest_paths[k][j]);
-            }
-        }
-    }
-
-    // Spočítáme excentricitu (největší vzdálenost) každého vrcholu v komponentě a použijeme ji k výpočtu poloměru a průměru
-    double radius = numeric_limits<double>::infinity();
-    double diameter = 0;
-    for (int i = 0; i < n; i++) {
-        double eccentricity = 0;
-        for (int j = 0; j < n; j++) {
-            eccentricity = max(eccentricity, shortest_paths[i][j]);
-        }
-        radius = min(radius, eccentricity);
-        diameter = max(diameter, eccentricity);
-    }
-
-    return make_pair(radius, diameter);
+    cout << "Components found" << endl;
+    return components;
 }
+
+set<int> getLargestComponent(const vector<set<int>>& components) {
+    cout << "Largest component find started" << endl;
+    set<int> largest_component;
+    for (const auto& component : components)
+        if (component.size() > largest_component.size()) {
+            largest_component = component;
+        }
+    cout << "Largest component found" << endl;
+    return largest_component;
+}
+
+vector<int> bfs_dist(int start, const vector<vector<int>>& adj_list) {
+    int n = adj_list.size();
+    vector<int> dist(n, numeric_limits<int>::max());
+    queue<int> q;
+    q.push(start);
+    dist[start] = 0;
+
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        for (int v : adj_list[u]) {
+            if (dist[v] == numeric_limits<int>::max()) {
+                dist[v] = dist[u] + 1;
+                q.push(v);
+            }
+        }
+    }
+
+    return dist;
+}
+
+void calculateGraphStats(const set<int>& component, const vector<vector<int>>& adj_list, double& radius, double& diameter) {
+    double sum = 0.0;
+    int num_pairs = 0;
+    radius = numeric_limits<double>::max();
+    diameter = numeric_limits<double>::min();
+
+    for (int u : component) {
+        vector<int> dist = bfs_dist(u, adj_list);
+        int max_dist = 0;
+        for (int v : component) {
+            if (u != v && dist[v] != numeric_limits<int>::max()) {
+                max_dist = max(max_dist, dist[v]);
+                sum += dist[v];
+                num_pairs++;
+            }
+        }
+        radius = min(radius, (double)max_dist);
+        diameter = max(diameter, (double)max_dist);
+    }
+
+    double avg_distance = sum / num_pairs;
+    cout << "Graph stats for largest component" << endl;
+    cout << "Radius: " << radius << endl;
+    cout << "Diameter: " << diameter << endl;
+    cout << "Average distance: " << avg_distance << endl;
+}
+
+
 
 int main() {
     // Vektory vrcholu grafu
@@ -107,31 +146,14 @@ int main() {
     // Seznam sousednosti
     vector<vector<int>> adj_list;
 
-    loadComponentsFromFile(adj_list, vertices);
-
-    // Hledání největší komponenty
-    vector<bool> visited(vertices.size(), false);
-    set<int> largest_component;
-    vector<set<int>> components;
-    for (int v = 0; v < vertices.size(); v++) {
-        if (!visited[v]) {
-            set<int> component;
-            bfs(v, adj_list, visited, component);
-            components.push_back(component);
-            if (component.size() > largest_component.size()) {
-                largest_component = component;
-            }
-        }
-    }
-
-    cout << "Largest component found" << endl;
-
+    loadComponentsFromFile("test.txt", adj_list, vertices);
+    vector<set<int>> components = getComponents(vertices, adj_list);
+    set<int> largest_component = getLargestComponent(components);
     int largest_num_vertices = largest_component.size();
     int largest_num_edges = 0;
     int largest_min_degree = largest_num_vertices;
     int largest_max_degree = 0;
     int largest_degree_sum = 0;
-    vector<int> degree_histogram(largest_num_vertices + 1, 0); // Histogram rozdělení stupňů vrcholů
     for (int v : largest_component) {
         int degree = adj_list[v].size();
         largest_num_edges += degree;
@@ -140,6 +162,7 @@ int main() {
         largest_max_degree = max(largest_max_degree, degree);
     }
 
+    vector<int> degree_histogram(largest_num_vertices + 1, 0); // Histogram rozdělení stupňů vrcholů
     int num_edges_all = 0;
     set<int> all_vertices;
     for (const auto& component : components) {
@@ -155,9 +178,18 @@ int main() {
     }
 
     double avg_degree = (double)largest_num_edges / largest_num_vertices;
-    pair<double, double> metrics = floyd_warshall(adj_list, largest_component);
-    cout << "Radius: " << metrics.first << endl;
-    cout << "Diameter: " << metrics.second << endl;
+
+    vector<vector<pair<int, double>>> adj_list_double(adj_list.size());
+    for (int i = 0; i < adj_list.size(); i++) {
+        for (int j = 0; j < adj_list[i].size(); j++) {
+            int v = adj_list[i][j];
+            double weight = 1.0; // Váha hrany
+            adj_list_double[i].push_back({ v, weight });
+        }
+    }
+
+    double radius, diameter;
+    calculateGraphStats(largest_component, adj_list, radius, diameter);
     cout << "Graph stats" << endl;
     cout << "Number of Vertices: " << all_vertices.size() << endl;
     cout << "Number of Edges: " << num_edges_all << endl;
