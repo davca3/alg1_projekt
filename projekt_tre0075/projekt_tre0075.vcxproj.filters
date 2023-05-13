@@ -23,11 +23,13 @@
     <Text Include="test.txt">
       <Filter>Resource Files</Filter>
     </Text>
-    <Text Include="..\..\graph1.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
     <Text Include="graph1.txt">
       <Filter>Resource Files</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\Downloads\BS_thread_pool.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

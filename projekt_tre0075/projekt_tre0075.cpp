@@ -1,61 +1,56 @@
 ﻿#include <iostream>
 #include <string>
 #include <fstream>
-#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 #include <queue>
-#include <set>
 #include <limits>
+#include <algorithm>
+#include <climits>
+#include <numeric>
+#include <chrono>
+#include <thread>
+#include <mutex>
+#include <atomic>
+//https://github.com/bshoshany/thread-pool
+#include "BS_thread_pool.hpp"
 using namespace std;
+// mutex pro synchronizaci vláken
+std::mutex mtx;
 
 //Nacteni vrcholu grafu a seznamu sousednosti ze souboru
-void loadComponentsFromFile(const string filename, vector<vector<int>>& adj_list, vector<int>& vertices) {
-    //cout << "Loading from file started" << endl;
-    fstream file(filename);
+void loadComponentsFromFile(const string& filename, unordered_map<int, vector<int>>& adj_list, unordered_set<int>& vertices) {
+    cout << "Loading from file started" << endl;
+    ifstream file(filename);
 
     if (!file.is_open()) {
-        std::cerr << "Chyba pri otevirani souboru" << std::endl;
+        cerr << "Chyba pri otevirani souboru" << endl;
         exit(1);
     }
 
-    string line;
     int num1, num2;
-    while (getline(file, line)) {
-        if (sscanf_s(line.c_str(), "%d %d", &num1, &num2) == 2) {
-            // Přidání vrcholů do seznamu vrcholů grafu
-            if (find(vertices.begin(), vertices.end(), num1) == vertices.end()) {
-                vertices.push_back(num1);
-            }
-            if (find(vertices.begin(), vertices.end(), num2) == vertices.end()) {
-                vertices.push_back(num2);
-            }
-            // Přidání hran do seznamu sousednosti
-            int index1 = distance(vertices.begin(), find(vertices.begin(), vertices.end(), num1));
-            int index2 = distance(vertices.begin(), find(vertices.begin(), vertices.end(), num2));
-            while (adj_list.size() < max(index1, index2) + 1) {
-                adj_list.push_back(vector<int>());
-            }
-            adj_list[index1].push_back(index2);
-            adj_list[index2].push_back(index1);
-        }
+    while (file >> num1 >> num2) {
+        vertices.insert(num1);
+        vertices.insert(num2);
+        adj_list[num1].push_back(num2);
+        adj_list[num2].push_back(num1);
     }
-    //cout << "File loaded" << endl;
-    file.close();
+    cout << "File loaded" << endl;
 }
 
 //Prohledani grafu do sirky a oznaceni navstivenych vrcholu
-set<int> bfs_component(int v, const vector<vector<int>>& adj_list, vector<bool>& visited) {
-    set<int> component;
+unordered_set<int> bfs_component(int v, const unordered_map<int, vector<int>>& adj_list, unordered_map<int, bool>& visited) {
+    unordered_set<int> component;
     queue<int> q;
     q.push(v);
     visited[v] = true;
-    component.insert(v);
     while (!q.empty()) {
         int u = q.front();
         q.pop();
-        for (int w : adj_list[u]) {
+        component.insert(u);
+        for (int w : adj_list.at(u)) {
             if (!visited[w]) {
                 visited[w] = true;
-                component.insert(w);
                 q.push(w);
             }
         }
@@ -65,35 +60,89 @@ set<int> bfs_component(int v, const vector<vector<int>>& adj_list, vector<bool>&
 }
 
 //Ziskani komponent grafu
-vector<set<int>> getComponents(vector<int>& vertices, const vector<vector<int>>& adj_list) {
-    //cout << "Components find started" << endl;
-    int n = adj_list.size();
-    vector<double> dist(n, numeric_limits<double>::infinity());
-    vector<bool> visited(vertices.size(), false);
-    vector<set<int>> components;
-    for (int v = 0; v < vertices.size(); v++) {
-        if (!visited[v]) {  
+vector<unordered_set<int>> getComponents(const unordered_set<int>& vertices, const unordered_map<int, vector<int>>& adj_list) {
+    cout << "Components find started" << endl;
+    unordered_map<int, bool> visited;
+    for (int v : vertices) visited[v] = false;
+    vector<unordered_set<int>> components;
+    for (int v : vertices) {
+        if (!visited[v]) {
             components.push_back(bfs_component(v, adj_list, visited));
         }
     }
-    //cout << "Components found" << endl;
+    cout << "Components found" << endl;
     return components;
 }
 
 //Nalezeni nejvetsi komponenty
-set<int> getLargestComponent(const vector<set<int>>& components) {
-    //cout << "Largest component find started" << endl;
-    set<int> largest_component;
+unordered_set<int> getLargestComponent(const vector<unordered_set<int>>& components) {
+    cout << "Largest component find started" << endl;
+    unordered_set<int> largest_component;
     for (const auto& component : components)
         if (component.size() > largest_component.size()) {
             largest_component = component;
         }
-    //cout << "Largest component found" << endl;
+    cout << "Largest component found" << endl;
     return largest_component;
 }
 
+//void calculateGraphStats(const unordered_set<int>& component, const unordered_map<int, vector<int>>& adj_list, double& radius, double& diameter) {
+//    cout << "Calculate radius and diameter started" << endl;
+//    double min_ecc = numeric_limits<int>::max();
+//    double max_ecc = -1;
+//
+//    BS::thread_pool pool(std::thread::hardware_concurrency() - 1);
+//
+//    std::mutex mtx;
+//
+//    for (int v : component) {
+//        pool.submit([&, v]() {
+//            unordered_map<int, int> dist = bfs_thread(adj_list, v, min_ecc, max_ecc);
+//            int max_dist = numeric_limits<int>::min();
+//            for (const auto& pair : dist) {
+//                if (pair.second != numeric_limits<int>::max()) {
+//                    max_dist = max(max_dist, pair.second);
+//                }
+//            }
+//            std::lock_guard<std::mutex> lock(mtx);
+//            min_ecc = min(min_ecc, max_dist);
+//            max_ecc = max(max_ecc, max_dist);
+//            });
+//    }
+//
+//    pool.wait_for_tasks();
+//
+//    radius = min_ecc;
+//    diameter = max_ecc;
+//
+//    cout << "Calculate radius and diameter ended" << endl;
+//}
+
+//void calculateGraphStats(const unordered_set<int>& component, const unordered_map<int, vector<int>>& adj_list, double& radius, double& diameter) {
+//    cout << "Calculate radius and diameter started" << endl;
+//    int min_ecc = numeric_limits<int>::max();
+//    int max_ecc = -1;
+//
+//    for (int v : component) {
+//        unordered_map<int, int> dist = bfs(adj_list, v, numeric_limits<int>::max());
+//        int max_dist = numeric_limits<int>::min();
+//        for (const auto& pair : dist) {
+//            if (pair.second != numeric_limits<int>::max()) {
+//                max_dist = max(max_dist, pair.second);
+//            }
+//        }
+//        min_ecc = min(min_ecc, max_dist);
+//        max_ecc = max(max_ecc, max_dist);
+//    }
+//
+//    radius = min_ecc;
+//    diameter = max_ecc;
+//
+//    cout << "Calculate radius and diameter ended" << endl;
+//}
+
 //Prochazeni pomoci breadth-first search algoritmu k zjisteni vzdalenosti ze startovniho bodu
-vector<int> bfs_dist(int start, const vector<vector<int>>& adj_list) {
+vector<int> bfs_dist(int start, const unordered_map<int, vector<int>>& adj_list) {
     int n = adj_list.size();
     vector<int> dist(n, numeric_limits<int>::max());
     queue<int> q;
@@ -103,7 +152,7 @@ vector<int> bfs_dist(int start, const vector<vector<int>>& adj_list) {
     while (!q.empty()) {
         int u = q.front();
         q.pop();
-        for (int v : adj_list[u]) {
+        for (int v : adj_list.at(u)) {
             if (dist[v] == numeric_limits<int>::max()) {
                 dist[v] = dist[u] + 1;
                 q.push(v);
@@ -114,70 +163,76 @@ vector<int> bfs_dist(int start, const vector<vector<int>>& adj_list) {
     return dist;
 }
 
+atomic<double> radius(numeric_limits<double>::max());
+atomic<double> diameter(0.0);
+
 //Vypocet prumeru a polomeru komponenty
-void calculateGraphStats(const set<int>& component, const vector<vector<int>>& adj_list, double& radius, double& diameter) {
+void calculateGraphStats(const unordered_set<int>& component, const unordered_map<int, vector<int>>& adj_list) {
+    cout << "calculating excentricities started" << endl;
     int num_pairs = 0;
-    radius = numeric_limits<double>::max();
-    diameter = numeric_limits<double>::min();
+    int i = 0;
+
+    BS::thread_pool pool(thread::hardware_concurrency());
 
     for (int u : component) {
-        vector<int> dist = bfs_dist(u, adj_list);
-        int max_dist = 0;
-        for (int v : component) {
-            if (u != v && dist[v] != numeric_limits<int>::max()) {
-                max_dist = max(max_dist, dist[v]);
+        pool.submit([&, u]() {
+            i++;
+            vector<int> dist = bfs_dist(u, adj_list);
+            int max_dist = 0;
+            for (int v : component) {
+                if (u != v && dist[v] != numeric_limits<int>::max()) {
+                    max_dist = max(max_dist, dist[v]);
+                }
             }
-        }
-        radius = min(radius, (double)max_dist);
-        diameter = max(diameter, (double)max_dist);
+
+            double old_radius;
+            do {
+                old_radius = radius.load();
+            } while (old_radius > max_dist && !radius.compare_exchange_weak(old_radius, max_dist));
+
+            double old_diameter;
+            do {
+                old_diameter = diameter.load();
+            } while (old_diameter < max_dist && !diameter.compare_exchange_weak(old_diameter, max_dist));
+
+            cout << i << endl;
+         });
     }
+
+    pool.wait_for_tasks();  // wait for all tasks to finish
+
+    cout << "calculating excentricities end" << endl;
 }
 
-//Vypocet statistik grafu a vypis
-void computeGraphStats(vector<int>& vertices, const vector<vector<int>>& adj_list, const vector<set<int>>& components) {
-    set<int> largest_component = getLargestComponent(components);
+void computeGraphStats(const unordered_set<int>& vertices, const unordered_map<int, vector<int>>& adj_list, const vector<unordered_set<int>>& components) {
+    unordered_set<int> largest_component = getLargestComponent(components);
 
-    //Vypocet statistik nejvetsi komponenty
+    // Computing stats for the largest component
     int largest_num_vertices = largest_component.size();
     int largest_num_edges = 0;
-    int largest_min_degree = largest_num_vertices;
-    int largest_max_degree = 0;
+    int largest_min_degree = INT_MAX;
+    int largest_max_degree = INT_MIN;
     int largest_degree_sum = 0;
+
+    unordered_map<int, int> degree_histogram;
     for (int v : largest_component) {
-        int degree = adj_list[v].size();
+        int degree = adj_list.at(v).size();
         largest_num_edges += degree;
         largest_degree_sum += degree;
         largest_min_degree = min(largest_min_degree, degree);
         largest_max_degree = max(largest_max_degree, degree);
+
+        degree_histogram[degree]++;
     }
 
-    // Histogram rozdělení stupňů vrcholů
-    vector<int> degree_histogram(largest_num_vertices + 1, 0); 
-
-    //Vypocet hran a histogram
-    int num_edges_all = 0;
-    set<int> all_vertices;
-    for (const auto& component : components) {
-        int num_vertices = component.size();
-        int num_edges = 0;
-        for (int v : component) {
-            num_edges += adj_list[v].size();
-            all_vertices.insert(v);
-            int degree = adj_list[v].size();
-            degree_histogram[degree]++;
-        }
-        num_edges_all += num_edges / 2;
-    }
-
-    double avg_degree = (double)largest_num_edges / largest_num_vertices;
+    double avg_degree = static_cast<double>(largest_degree_sum) / largest_num_vertices;
 
     //Vypocet prumeru a polomeru komponenty
-    double radius, diameter;
-    calculateGraphStats(largest_component, adj_list, radius, diameter);
+    calculateGraphStats(largest_component, adj_list);
 
     cout << "Graph stats" << endl;
-    cout << "Number of Vertices: " << all_vertices.size() << endl;
-    cout << "Number of Edges: " << num_edges_all << endl;
+    cout << "Number of Vertices: " << vertices.size() << endl;
+    cout << "Number of Edges: " << largest_num_edges / 2 << endl;
     cout << "Number of Components: " << components.size() << endl << endl;
 
     cout << "Largest Component" << endl;
@@ -186,27 +241,32 @@ void computeGraphStats(vector<int>& vertices, const vector<vector<int>>& adj_lis
     cout << "Min degree: " << largest_min_degree << endl;
     cout << "Max degree: " << largest_max_degree << endl;
     cout << "Avg degree: " << avg_degree << endl;
-    cout << "Radius: " << radius << endl;
-    cout << "Diameter: " << diameter << endl << endl;
+    cout << "Radius: " << radius.load() << endl;
+    cout << "Diameter: " << diameter.load() << endl << endl;
 
     cout << "Histogram of the peak degree distribution:" << endl;
-    for (int i = 0; i < degree_histogram.size(); i++) {
-        if (degree_histogram[i] > 0) {
-            cout << i << ": " << degree_histogram[i] << endl;
-        }
+    for (const auto& degree : degree_histogram) {
+        cout << degree.first << ": " << degree.second << endl;
     }
 }
 
 int main() {
-    // Vektory vrcholu grafu
-    vector<int> vertices;
-    // Seznam sousednosti
-    vector<vector<int>> adj_list;
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+
+    // Graph vertices
+    unordered_set<int> vertices;
+    // Adjacency list
+    unordered_map<int, vector<int>> adj_list;
 
     loadComponentsFromFile("graph1.txt", adj_list, vertices);
-    vector<set<int>> components = getComponents(vertices, adj_list);
+    vector<unordered_set<int>> components = getComponents(vertices, adj_list);
     computeGraphStats(vertices, adj_list, components);
 
-    system("pause");
+    std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+
+    std::cout << "Cas behu programu: " << duration.count() << " sekund." << std::endl;
+
     return 0;
 }
+
