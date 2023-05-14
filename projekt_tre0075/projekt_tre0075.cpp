@@ -3,8 +3,7 @@
  * @author  David Tretina (TRE0075) <david.tretina.st@vsb.cz>
  * @version 1.1
  *
- * @section DESCRIPTION
- * A program for analyzing and calculating statistics of a graph.
+ * @brief   A program for analyzing and calculating statistics of a graph.
  */
 
 #include <iostream>
@@ -115,7 +114,7 @@ unordered_set<int> getLargestComponent(const vector<unordered_set<int>>& compone
 
 /**
  * @brief Performs a breadth-first search to calculate the distance from a starting vertex to all other vertices.
- * 
+ *
  * @param start The starting vertex.
  * @param adj_list The adjacency list of the graph.
  * @return A vector containing the distances from the starting vertex to all other vertices.
@@ -143,7 +142,7 @@ vector<int> bfs_dist(int start, const unordered_map<int, vector<int>>& adj_list)
 
 /**
  * @brief Calculates the radius and diameter of a graph component.
- * 
+ *
  * @param component The set of vertices in the component.
  * @param adj_list The adjacency list of the graph.
  */
@@ -172,7 +171,7 @@ void calculateGraphStats(const unordered_set<int>& component, const unordered_ma
             do {
                 old_diameter = diameter.load();
             } while (old_diameter < max_dist && !diameter.compare_exchange_weak(old_diameter, max_dist));
-         });
+                    });
     }
 
     pool.wait_for_tasks();  // wait for all tasks to finish
@@ -182,7 +181,7 @@ void calculateGraphStats(const unordered_set<int>& component, const unordered_ma
 
 /**
  * @brief Computes various statistics of the graph.
- * 
+ *
  * @param vertices The set of vertices in the graph.
  * @param adj_list The adjacency list of the graph.
  * @param components A vector containing sets of vertices for each component.
