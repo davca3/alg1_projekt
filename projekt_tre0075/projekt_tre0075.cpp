@@ -2,9 +2,9 @@
  * @file    main.cpp
  * @author  David Tretina (TRE0075) <david.tretina.st@vsb.cz>
  * @version 1.0
- * @date 2023-05-14
+ * @date    2023-05-14
  *
- * @brief A program for analyzing and calculating statistics of a graph.
+ * @brief   A program for analyzing and calculating statistics of a graph.
  */
 
 #include <iostream>
