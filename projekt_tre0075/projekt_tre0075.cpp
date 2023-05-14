@@ -1,7 +1,7 @@
 ﻿/**
  * @file    main.cpp
  * @author  David Tretina (TRE0075) <david.tretina.st@vsb.cz>
- * @version 1.0
+ * @version 1.1
  *
  * @section DESCRIPTION
  * A program for analyzing and calculating statistics of a graph.
